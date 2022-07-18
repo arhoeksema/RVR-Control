@@ -55,7 +55,7 @@ class gamepad():
                         self.joystick_left_y = event.state / gamepad.MAX_JOY_VAL
                     elif event.code == ecodes.ABS_RX:
                         self.joystick_right_x = event.state / gamepad.MAX_JOY_VAL
-"""
+
                     #if not(self.power_on): #stop reading device when power_on = false
                      #   break
                     #print(str(event.type) + ' ' + str(event.code) + ' ' + str(event.value))
@@ -115,7 +115,7 @@ class gamepad():
                             self.bump_right = True if event.value == 1 else False
                         if event.code == 'BTN_TL': # bumper "left" pressed ?
                             self.bump_left = True if event.value == 1 else False
-"""
+
 
 
 if __name__ == '__main__':
