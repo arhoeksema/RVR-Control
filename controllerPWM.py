@@ -4,6 +4,8 @@ import math
 import threading
 import time
 
+h = lgpio.gpiochip_open(0)
+
 class Controller(object):
     MAX_TRIG_VAL = math.pow(2, 8)
     MAX_JOY_VAL = math.pow(2, 15)
@@ -35,34 +37,34 @@ class Controller(object):
 
 
     def read(self): # return the buttons/triggers that you care about in this method
-        LY = (self.LeftJoystickY * -2.5) + 2.5
-        if LY >= 4.75:
-            LY = 5.0
-        elif 2.40 <= LY <= 2.60:
-            LY = 2.5
-        elif LY <= .1:
-            LY = 0
+        Left_Y = (self.LeftJoystickY * -2.5) + 2.5
+        if Left_Y >= 4.75:
+            Left_Y = 5.0
+        elif 2.40 <= Left_Y <= 2.60:
+            Left_Y = 2.5
+        elif Left_Y <= .1:
+            Left_Y = 0
         else:
-            LY = (self.LeftJoystickY * -2.5) + 2.5
+            Left_Y = (self.LeftJoystickY * -2.5) + 2.5
         
-        dcLY = (LY + 0.8206) / 0.0527   #Duty cycle % for left joystick
+        dcLeft_Y = (Left_Y + 0.8206) / 0.0527   #Duty cycle % for left joystick
 
-        RX = (self.RightJoystickX * 2.5) + 2.5
-        if RX >= 4.75:
-            RX = 5.0
-        elif 2.40 <= RX <= 2.60:
-            RX = 2.5
-        elif RX <= .1:
-            RX = 0
+        Right_X = (self.RightJoystickX * 2.5) + 2.5
+        if Right_X >= 4.75:
+            Right_X = 5.0
+        elif 2.40 <= Right_X <= 2.60:
+            Right_X = 2.5
+        elif Right_X <= .1:
+            Right_X = 0
         else:
-            RX = (self.LeftJoystickY * 2.5) + 2.5
+            Right_X = (self.LeftJoystickY * 2.5) + 2.5
 
-        dcRX = (RX + 0.8795) / 0.0535   #Duty cycle % for right joystick
+        dcRight_X = (Right_X + 0.8795) / 0.0535   #Duty cycle % for right joystick
 
         a = self.A
         b = self.X # b=1, x=2
         rb = self.RightBumper
-        return [LY, dcLY, RX, dcRX, a, b, rb]
+        return [Left_Y, dcLeft_Y, Right_X, dcRight_X, a, b, rb]
 
 
     def _monitor_controller(self):
@@ -114,9 +116,8 @@ if __name__ == '__main__':
         [LY, dcLY, RX, dcRX, a, b, rb] = joy.read()
         pwm_L = dcLY
         pwm_R = dcRX
-        in1_pin = 13
-        in2_pin = 12
+        in1_pin = 12
+        in2_pin = 13
         frequency = 5000
-        h = lgpio.gpiochip_open(0)
         lgpio.tx_pwm(h, in1_pin, frequency, pwm_L)
         lgpio.tx_pwm(h, in2_pin, frequency, pwm_R)
