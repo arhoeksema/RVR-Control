@@ -5,6 +5,9 @@ import threading
 import time
 
 h = lgpio.gpiochip_open(0)
+dcLeft_Y = (2.5 + 0.8206) / 0.0527
+dcRight_X = (2.5 + 0.8795) / 0.0535 
+
 
 class Controller(object):
     MAX_TRIG_VAL = math.pow(2, 8)
@@ -48,6 +51,13 @@ class Controller(object):
             Left_Y = (self.LeftJoystickY * -2.5) + 2.5
         
         dcLeft_Y = (Left_Y + 0.8206) / 0.0527   #Duty cycle % for left joystick
+        
+        if dcLeft_Y > 100:
+            dcLeft_Y = 100
+            Left_Y = (0.0527 * dcLeft_Y) - 0.8206
+        else:
+            dcLeft_Y = (Left_Y + 0.8206) / 0.0527
+
 
         Right_X = (self.RightJoystickX * 2.5) + 2.5
         if Right_X >= 4.75:
@@ -57,14 +67,20 @@ class Controller(object):
         elif Right_X <= .1:
             Right_X = 0
         else:
-            Right_X = (self.LeftJoystickY * 2.5) + 2.5
+            Right_X = (self.RightJoystickX * 2.5) + 2.5
 
         dcRight_X = (Right_X + 0.8795) / 0.0535   #Duty cycle % for right joystick
+        if dcRight_X > 100:
+            dcRight_X = 100
+            Right_X = (0.0535 * dcRight_X) - 0.8795
+        else:
+            dcRight_X = (Right_X + 0.8795) / 0.0535
 
-        a = self.A
-        b = self.X # b=1, x=2
-        rb = self.RightBumper
-        return [Left_Y, dcLeft_Y, Right_X, dcRight_X, a, b, rb]
+        button_A = self.A
+        button_B = self.B
+        button_Y = self.Y
+        button_X = self.X
+        return [Left_Y, dcLeft_Y, Right_X, dcRight_X, button_A, button_B, button_Y, button_X]
 
 
     def _monitor_controller(self):
@@ -107,17 +123,51 @@ class Controller(object):
                     self.UpDPad = event.state
                 elif event.code == 'BTN_TRIGGER_HAPPY4':
                     self.DownDPad = event.state
-
+    """
+    def button(event):
+            if event.code == 'BTN_THUMBL':
+                lgpio.tx_pwm(h, LED, frequency, 0)
+                #lgpio.tx_pwm(h, in1_pin, frequency, pwm_L)
+                #lgpio.tx_pwm(h, in2_pin, frequency, pwm_R)
+                lgpio.gpiochip_close(h)
+"""
 
 if __name__ == '__main__':
     joy = Controller()
     while True:
-        #print(joy.read())
-        [LY, dcLY, RX, dcRX, a, b, rb] = joy.read()
-        pwm_L = dcLY
-        pwm_R = dcRX
-        in1_pin = 12
-        in2_pin = 13
+        print(joy.read())
+        [Left_Y, dcLeft_Y, Right_X, dcRight_X, button_A, button_B, button_Y, button_X] = joy.read()
         frequency = 5000
-        lgpio.tx_pwm(h, in1_pin, frequency, pwm_L)
-        lgpio.tx_pwm(h, in2_pin, frequency, pwm_R)
+        #in1_pin = 12
+        #in2_pin = 13
+        LED = 23
+        pwm_L = 0
+        pwm_R = dcRight_X
+        lgpio.tx_pwm(h, LED, frequency, pwm_L)
+        if button_A==1 & button_B==1:
+            
+            while True:
+                print(joy.read())
+                [Left_Y, dcLeft_Y, Right_X, dcRight_X, button_A, button_B, button_Y, button_X] = joy.read()
+                frequency = 5000
+                in1_pin = 12
+                in2_pin = 13
+                LED = 23
+                pwm_L = dcLeft_Y
+                pwm_R = dcRight_X
+                lgpio.tx_pwm(h, LED, frequency, pwm_L)
+
+                if button_A==0 & button_B==0:
+                    continue
+                elif button_A==1 & button_B==1:
+                    pwm_L = 0
+                    pwm_R = 0
+                    lgpio.tx_pwm(h, LED, frequency, pwm_L)
+                    break
+            
+            
+            #lgpio.tx_pwm(h, in1_pin, frequency, pwm_L)
+            #lgpio.tx_pwm(h, in2_pin, frequency, pwm_R)
+
+
+    
