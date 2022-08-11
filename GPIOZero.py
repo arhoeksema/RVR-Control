@@ -1,23 +1,20 @@
-#from turtle import right
+from re import L
 from inputs import get_gamepad
 import math
 import threading
-import time
-import os
-from gpiozero import PWMOutputDevice
-from gpiozero import LED
+from gpiozero import PWMOutputDevice, DigitalOutputDevice, LED
 from signal import pause
 
-
-
 class Controller(object):
+    #Normalize values to -1,0,1
     MAX_TRIG_VAL = math.pow(2, 8)
     MAX_JOY_VAL = math.pow(2, 15)
 
     def __init__(self):
 
+        #Identify buttons on controller
         self.LeftJoystickY = 0
-        self.RightJoystickX = 0
+        self.RightJoystickY = 0
         self.LeftTrigger = 0
         self.RightTrigger = 0
         self.LeftBumper = 0
@@ -41,66 +38,25 @@ class Controller(object):
 
 
     def read(self): # return the buttons/triggers that you care about in this method
-        Left_Y = (self.LeftJoystickY * -2.5) + 2.5
-    
-        if Left_Y >= 4.75:
-            Left_Y = 5.0
-        elif 2.40 <= Left_Y <= 2.60:
-            Left_Y = 2.5
-        elif Left_Y <= .1:
-            Left_Y = 0
-        else:
-            Left_Y = (self.LeftJoystickY * -2.5) + 2.5
-            
-        
-        dcLeft_Y = (Left_Y + 0.8206) / 0.0527   #Duty cycle % for left joystick
-        
-        if dcLeft_Y > 100:
-            dcLeft_Y = 100
-            Left_Y = (0.0527 * dcLeft_Y) - 0.8206
-        if dcLeft_Y < 20:
-            dcLeft_Y = 0
-            Left_Y = 0
-        else:
-            dcLeft_Y = (Left_Y + 0.8206) / 0.0527
-
-
-        Right_X = (self.RightJoystickX * 2.5) + 2.5
-        
-        if Right_X >= 4.75:
-            Right_X = 5.0
-        elif 2.40 <= Right_X <= 2.60:
-            Right_X = 2.5
-        elif Right_X <= .1:
-            Right_X = 0
-        else:
-            Right_X = (self.RightJoystickX * 2.5) + 2.5
-        
-        dcRight_X = (Right_X + 0.8795) / 0.0535   #Duty cycle % for right joystick
-        if dcRight_X > 100:
-            dcRight_X = 100
-            Right_X = (0.0535 * dcRight_X) - 0.8795
-        if dcRight_X < 20:
-            dcRight_X = 0
-            Right_X = 0
-        else:
-            dcRight_X = (Right_X + 0.8795) / 0.0535
-
-        button_A = self.A
-        button_B = self.B
-        button_Y = self.Y
-        button_X = self.X
+        Left_Y = self.LeftJoystickY 
+        Right_Y = self.RightJoystickY 
+        leftTrigger = self.LeftTrigger
+        rightTrigger = self.RightTrigger
         leftBumper = self.LeftBumper
         rightBumper = self.RightBumper
-        return [Left_Y, dcLeft_Y, Right_X, dcRight_X, leftBumper, rightBumper]
+
+        return [Left_Y, Right_Y, leftTrigger, rightTrigger]
 
 
     def _monitor_controller(self):
         while True:
             events = get_gamepad()
             for event in events:
+                #Obtain input from the controller
                 if event.code == 'ABS_Y':
                     self.LeftJoystickY = event.state / Controller.MAX_JOY_VAL # normalize between -1 and 1
+                elif event.code == 'ABS_RY':
+                    self.RightJoystickY = event.state / Controller.MAX_JOY_VAL # normalize between -1 and 1
                 elif event.code == 'ABS_RX':
                     self.RightJoystickX = event.state / Controller.MAX_JOY_VAL # normalize between -1 and 1
                 elif event.code == 'ABS_Z':
@@ -139,7 +95,61 @@ class Controller(object):
 
 if __name__ == '__main__':
     joy = Controller()
-    frequency = 5000
+    frequency = 50
+    
+    # Setup motor 1 PWM and direction
+    pwm1_pin = PWMOutputDevice(12)
+    pwm1_pin.frequency = frequency
+    dir1_pin = DigitalOutputDevice(20)
+
+    pwm2_pin = PWMOutputDevice(13)
+    pwm2_pin.frequency = frequency
+    dir2_pin = DigitalOutputDevice(19)
+
+    led = LED(21)
+    led.on()
+
+    while True:
+        while joy:  
+            #led.on()      
+            [Left_Y, Right_Y, leftTrigger, rightTrigger] = joy.read()
+            deadzone = 0.2
+
+            motor1_throttle = -1.0*Left_Y
+            motor2_throttle = 1.0*Right_Y
+
+            if motor1_throttle > deadzone:
+                dir1_pin.on()
+                pwm1_pin.value = abs(motor1_throttle)
+            elif -1.0*deadzone < motor1_throttle < deadzone:
+                dir1_pin.off()
+                pwm1_pin.value = 0.0
+            elif motor1_throttle < -1.0*deadzone:
+                dir1_pin.off()
+                pwm1_pin.value = abs(motor1_throttle)
+            
+            if motor2_throttle > deadzone:
+                dir2_pin.on()
+                pwm2_pin.value = abs(motor2_throttle)
+            elif -1.0*deadzone < motor2_throttle < deadzone:
+                dir2_pin.off()
+                pwm2_pin.value = 0.0
+            elif motor2_throttle < -1.0*deadzone:
+                dir2_pin.off()
+                pwm2_pin.value = abs(motor2_throttle)
+
+                
+
+
+         
+            print(f'{dir1_pin.value} {pwm1_pin.value} {dir2_pin.value} {pwm2_pin.value}')
+
+
+        #led.off()
+
+    """ 
+    joy = Controller()
+    frequency = 50
     in1_pin = PWMOutputDevice(12)
     in1_pin.frequency = frequency  
     in2_pin = PWMOutputDevice(13)
@@ -147,28 +157,28 @@ if __name__ == '__main__':
     led = LED(26)
     while True:               
         print(joy.read())
-        [Left_Y, dcLeft_Y, Right_X, dcRight_X, leftBumper, rightBumper] = joy.read()
+        [Left_Y, dcLeft_Y, Right_X, dcRight_Y, leftBumper, rightBumper] = joy.read()
         in1_pin.value = dcLeft_Y/100     #Duty cycle for pin 12
-        in2_pin.value = dcRight_X/100    #Duty cycle for pin 13
+        in2_pin.value = dcRight_Y/100    #Duty cycle for pin 13
         led.on()
-"""
+
     while True:
         print(joy.read())
-        [Left_Y, dcLeft_Y, Right_X, dcRight_X, leftBumper, rightBumper] = joy.read()
+        [Left_Y, dcLeft_Y, Right_Y, dcRight_X, leftBumper, rightBumper] = joy.read()
         dcLeft_Y = (2.5 + 0.8206) / 0.0527
-        dcRight_X = (2.5 + 0.8795) / 0.0535
+        dcRight_Y = (2.5 + 0.8795) / 0.0535
         in1_pin.value = 0
         in1_pin.value = 0
         led.off()
         #in1_pin.value = dcLeft_Y/100     #Duty cycle for pin 12
-        #in2_pin.value = dcRight_X/100    #Duty cycle for pin 13
+        #in2_pin.value = dcRight_Y/100    #Duty cycle for pin 13
         if leftBumper==1 & rightBumper==1:
     
             while True:               
                 print(joy.read())
-                [Left_Y, dcLeft_Y, Right_X, dcRight_X, leftBumper, rightBumper] = joy.read()
+                [Left_Y, dcLeft_Y, Right_Y, dcRight_Y, leftBumper, rightBumper] = joy.read()
                 in1_pin.value = dcLeft_Y/100     #Duty cycle for pin 12
-                in2_pin.value = dcRight_X/100    #Duty cycle for pin 13
+                in2_pin.value = dcRight_Y/100    #Duty cycle for pin 13
                 led.on()
                 
                 if leftBumper==0 & rightBumper==0:
@@ -180,4 +190,4 @@ if __name__ == '__main__':
         else:
             continue
             
-"""
+    """
