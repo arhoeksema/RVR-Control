@@ -144,8 +144,9 @@ if __name__ == '__main__':
          
             print(f'{dir1_pin.value} {pwm1_pin.value} {dir2_pin.value} {pwm2_pin.value}')
 
-
-        #led.off()
+        pwm1_pin.value = 0.0
+        pwm2_pin.value = 0.0
+        led.off()
 
     """ 
     joy = Controller()
